@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="FakeStoreOrderProcessor.Business/FakeStoreOrderProcessor.Business.csproj" />
+  <Project Path="FakeStoreOrderProcessor.Host/FakeStoreOrderProcessor.Host.csproj" />
+  <Project Path="FakeStoreOrderProcessor.Library/FakeStoreOrderProcessor.Library.csproj" />
+</Solution>
