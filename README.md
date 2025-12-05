@@ -3,8 +3,6 @@
 ## Visão geral
 Este repositório contém um template de Serviço Windows construído com .NET 8 e TopShelf. O projeto já vem estruturado com camadas separadas (Host → Business → Library), configuração centralizada, logging com Serilog e execução baseada em timer.
 
-O propósito é criar um "esqueleto" que sirva como base para a criação de serviços Windows que sigam um padrão tanto de implementação quanto de configuração e logging.
-
 A execução do trabalho é feita de forma assíncrona para maximizar a eficiência do uso dos recursos computacionais.
 
 Funcionalidade de exemplo disponível:
