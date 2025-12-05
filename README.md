@@ -1,4 +1,4 @@
-# Service Template — Serviço Windows em .NET 8
+# FakeStoreOrderProcessor — Serviço Windows em .NET 8
 
 ## Visão geral
 Este repositório contém um template de Serviço Windows construído com .NET 8 e TopShelf. O projeto já vem estruturado com camadas separadas (Host → Business → Library), configuração centralizada, logging com Serilog e execução baseada em timer.
