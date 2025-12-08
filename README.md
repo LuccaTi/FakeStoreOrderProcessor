@@ -63,22 +63,23 @@ Seções disponíveis:
 O código precisa ser compilado tanto em versão Debug quanto versão Release para gerar o executável, em seguida pode rodar como console ao usar o .exe no terminal (cmd, por exemplo).
 
 Para instalar é preciso seguir o passo a passo abaixo:
-1.No Visual Studio, compile a solução na configuração Release.
 
-2.Localize o caminho completo do executável gerado. 
+- No Visual Studio, compile a solução na configuração Release.
+
+- Localize o caminho completo do executável gerado. 
 Exemplo: C:\seus\projetos\solução\projeto com Program.cs\bin\Release\net8.0\service.exe.
 
-3.Abra o cmd ou o power shell como administrador e execute o comando abaixo para criar o serviço no windows:
+- Abra o cmd ou o power shell como administrador e execute o comando abaixo para criar o serviço no windows:
 sc.exe create "ServiceName" binPath="C:\caminho\completo\para\seu\service.exe" DisplayName="Service Display Name"
 
-4.Use o comando abaixo para adicionar uma descrição:
+- Use o comando abaixo para adicionar uma descrição:
 sc.exe description "ServiceName" "Descrição o serviço.".
 
-5.Inicie o serviço via linha de comando:
+- Inicie o serviço via linha de comando:
 sc.exe start "ServiceName"
 
-6.Para desinstalar, primeiro pare o serviço:
+- Para desinstalar, primeiro pare o serviço:
 sc.exe stop "ServiceName"
 
-7.Em seguida desinstale:
+- Em seguida desinstale:
 sc.exe delete "ServiceName"
