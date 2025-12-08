@@ -1,98 +1,49 @@
-﻿using FakeStoreOrderProcessor.Business.Configuration;
-using FakeStoreOrderProcessor.Business.Logging;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Serilog;
 using System.Reflection.Metadata.Ecma335;
 using System.Timers;
 using FakeStoreOrderProcessor.Business.Interfaces;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 
 namespace FakeStoreOrderProcessor.Business
 {
-    public class ServiceLifeCycleManager
+    public class ServiceLifeCycleManager : BackgroundService
     {
-        #region Attributes
         private const string _className = "ServiceLifeCycleManager";
-        private List<Task> _tasks;
-        #endregion
+        private List<Task> _tasks = new();
+        private readonly ILogger<ServiceLifeCycleManager> _logger;
+        private readonly IOptions<ServiceSettings> _settings;
+        private readonly IEnumerable<IServiceOrchestrator> _orchestrators;
 
-        #region Dependencies
-        private readonly IServiceProcessingOrchestrator _orchestrator;
-        #endregion
-
-        public ServiceLifeCycleManager(IServiceProcessingOrchestrator orchestrator)
+        public ServiceLifeCycleManager(ILogger<ServiceLifeCycleManager> logger, IOptions<ServiceSettings> settings, IEnumerable<IServiceOrchestrator> orchestrators)
         {
-            try
-            {
-                _tasks = new List<Task>();
-                _orchestrator = orchestrator;
-            }
-            catch (Exception ex)
-            {
-                Logger.Error(_className, "ServiceLifeCycleManager constructor", $"Error: {ex.ToString()}{Environment.NewLine}Application will be terminated by TopShelf!");
-                throw;
-            }
+            _logger = logger;
+            _settings = settings;
+            _orchestrators = orchestrators;
         }
 
-        #region Methods
-        public void Start()
+        protected override async Task ExecuteAsync(CancellationToken cancellationToken)
         {
-            try
+            _logger.LogInformation($"{_className} - Application started successfully!");
+            _logger.LogInformation($"{_className} - Starting processing tasks...");
+
+            foreach(var orchestrator in _orchestrators)
             {
-                Logger.Info("Application started successfully!");
-                CreateWorkThreads();
-            }
-            catch (Exception ex)
-            {
-                Logger.Error(_className, "Start", $"Error: {ex.Message}");
-                throw;
+                _tasks.Add(orchestrator.EventHandlerAsync(cancellationToken));
             }
 
-        }
+            await Task.WhenAll(_tasks);
 
-        private void CreateWorkThreads()
-        {
-            try
-            {
-                _tasks.Add(Task.Run(_orchestrator.EventHandlerAsync));
-            }
-            catch (Exception ex)
-            {
-                Logger.Error(_className, "CreateWorkThreads", $"Error: {ex.Message}");
-                throw;
-            }
+            _logger.LogInformation($"{_className} - All tasks concluded, stopping service...");
         }
-        public void Stop()
+        public override async Task StopAsync(CancellationToken cancellationToken)
         {
-            try
-            {
-                Logger.Info("Request to stop received, stopping application...");
-                _orchestrator.SignalStop();
-                Dispose();
-            }
-            catch (Exception ex)
-            {
-                Logger.Error(_className, "Stop", $"Error: {ex.Message}");
-                throw;
-            }
+            _logger.LogInformation($"{_className} - Stop signal received");
+            await base.StopAsync(cancellationToken);
+            _logger.LogInformation($"{_className} - Service finalized.");
         }
-        public void Dispose()
-        {
-            try
-            {
-                Task.WaitAll(_tasks.ToArray(), TimeSpan.FromSeconds(30));
-
-                foreach (var task in _tasks)
-                {
-                    task.Dispose();
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.Error(_className, "Dispose", $"Error: {ex.Message}");
-                throw;
-            }
-        }
-        #endregion
     }
 }

@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 
 namespace FakeStoreOrderProcessor.Business.Interfaces
 {
-    public interface IServiceProcessingEngine
+    public interface IServiceOrchestrator
     {
-        public Task ProcessAsync(CancellationToken cancellationToken);
+        public Task EventHandlerAsync(CancellationToken cancellationToken);
     }
 }
