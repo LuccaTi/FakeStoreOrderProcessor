@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace FakeStoreOrderProcessor.Business.Interfaces
+namespace FakeStoreOrderProcessor.Business.Engines.Interfaces
 {
     public interface IServiceEngine
     {

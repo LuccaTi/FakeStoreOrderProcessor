@@ -2,10 +2,10 @@
 using Serilog;
 using System.Reflection.Metadata.Ecma335;
 using System.Timers;
-using FakeStoreOrderProcessor.Business.Interfaces;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using FakeStoreOrderProcessor.Business.Orchestrators.Interfaces;
 
 
 namespace FakeStoreOrderProcessor.Business
