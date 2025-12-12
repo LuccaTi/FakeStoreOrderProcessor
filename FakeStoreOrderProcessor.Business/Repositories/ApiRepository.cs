@@ -9,37 +9,43 @@ using System.Threading.Tasks;
 
 namespace FakeStoreOrderProcessor.Business.Repositories
 {
-    public abstract class ApiRepository<T> : IApiRepository<T> where T : class
+    public abstract class ApiRepository<TEntity, TCreateEntity, TUpdateEntity> 
+        : IApiRepository<TEntity, TCreateEntity, TUpdateEntity> 
+        where TEntity : class
+        where TCreateEntity : class
+        where TUpdateEntity : class
     {
-        private readonly HttpClient _httpClient;
-        private readonly ILogger<ApiRepository<T>> _logger;
+        protected readonly HttpClient _httpClient;
+        protected readonly ILogger<ApiRepository<TEntity, TCreateEntity, TUpdateEntity>> _logger;
         protected readonly string _endpointPath;
+        protected readonly string _className;
 
-        public ApiRepository(HttpClient httpClient, ILogger<ApiRepository<T>> logger, string endpointPath)
+        public ApiRepository(IHttpClientFactory httpClientFactory, ILogger<ApiRepository<TEntity, TCreateEntity, TUpdateEntity>> logger, string endpointPath, string className)
         {
-            _httpClient = httpClient;
+            _httpClient = httpClientFactory.CreateClient("ApiClient");
             _logger = logger;
             _endpointPath = endpointPath;
+            _className = className;
         }
         
-        public async Task<List<T>?> GetAllAsync()
+        public async Task<List<TEntity>?> GetAllAsync()
         {
-            return await _httpClient.GetFromJsonAsync<List<T>>(_endpointPath);
+            return await _httpClient.GetFromJsonAsync<List<TEntity>>(_endpointPath);
         }
 
-        public async Task<T?> GetByIdAsync(long id)
+        public async Task<TEntity?> GetByIdAsync(long id)
         {
-            return await _httpClient.GetFromJsonAsync<T>($"{_endpointPath}/{id}");
+            return await _httpClient.GetFromJsonAsync<TEntity>($"{_endpointPath}/{id}");
         }
 
-        public async Task<T?> PostAsync(T entity)
+        public async Task<TEntity?> PostAsync(TCreateEntity entity)
         {
             var response = await _httpClient.PostAsJsonAsync(_endpointPath, entity);
             response.EnsureSuccessStatusCode();
-            return await response.Content.ReadFromJsonAsync<T>();
+            return await response.Content.ReadFromJsonAsync<TEntity>();
         }
 
-        public async Task PatchAsync(long id, T entity)
+        public async Task PatchAsync(long id, TUpdateEntity entity)
         {
             var response = await _httpClient.PatchAsJsonAsync($"{_endpointPath}/{id}", entity);
             response.EnsureSuccessStatusCode();
@@ -50,6 +56,5 @@ namespace FakeStoreOrderProcessor.Business.Repositories
             var response = await _httpClient.DeleteAsync($"{_endpointPath}/{id}");
             response.EnsureSuccessStatusCode();
         }
-
     }
 }

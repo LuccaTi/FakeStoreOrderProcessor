@@ -3,12 +3,15 @@ using FakeStoreOrderProcessor.Business.Engines;
 using FakeStoreOrderProcessor.Business.Engines.Interfaces;
 using FakeStoreOrderProcessor.Business.Orchestrators;
 using FakeStoreOrderProcessor.Business.Orchestrators.Interfaces;
+using FakeStoreOrderProcessor.Business.Repositories;
+using FakeStoreOrderProcessor.Business.Repositories.Interfaces;
 using FakeStoreOrderProcessor.Business.Services;
 using FakeStoreOrderProcessor.Business.Services.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Hosting.WindowsServices;
+using Microsoft.Extensions.Options;
 using Serilog;
 using System;
 using System.IO;
@@ -47,20 +50,27 @@ namespace FakeStoreOrderProcessor.Host
                         services.AddHostedService<ServiceLifeCycleManager>();
                         services.AddSingleton<IServiceOrchestrator, ServiceOrchestrator>();
                         services.AddSingleton<IServiceEngine, ServiceEngine>();
-                        services.AddSingleton<IFileService, FileService>();
-                        services.AddHttpClient<IApiService, ApiService>(client =>
+
+                        services.AddHttpClient("ApiClient", (serviceProvider, client) =>
                         {
-                            string? baseAddress = hostContext.Configuration.GetValue<string>("ApiUrl");
+                            var settings = serviceProvider.GetRequiredService<IOptions<ServiceSettings>>().Value;
+
+                            string? baseAddress = settings.ApiUrl;
                             if (string.IsNullOrEmpty(baseAddress))
                                 throw new Exception("API URL was not provided!");
 
-                            int timeout = hostContext.Configuration.GetValue<int>("Timeout");
+                            int timeout = settings.Timeout;
                             if (timeout == 0)
                                 timeout = 30;
 
                             client.BaseAddress = new Uri(baseAddress);
                             client.Timeout = TimeSpan.FromSeconds(timeout);
                         });
+                        services.AddScoped<IFileService, FileService>();
+                        services.AddScoped<IApiService, ApiService>();
+                        services.AddScoped<IProductRepository, ProductRepository>();
+
+                        services.AddAutoMapper(typeof(BusinessAssemblyMarker).Assembly);
                     })
                     .Build();
 

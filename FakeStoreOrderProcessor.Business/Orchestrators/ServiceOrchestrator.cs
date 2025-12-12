@@ -35,12 +35,12 @@ namespace FakeStoreOrderProcessor.Business.Orchestrators
                 }
                 catch (OperationCanceledException)
                 {
-                    _logger.LogWarning($"{_className} - Application termination by signaling and cancellation token");
+                    _logger.LogWarning($"{_className} - EventHandlerAsync - Application termination by signaling and cancellation token");
                     break;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, $"{_className} - An unhandled exception has ocurred, {ex.Message}");
+                    _logger.LogError(ex, $"{_className} - EventHandlerAsync - An unhandled exception has ocurred, {ex.Message}");
                 }
                 try
                 {

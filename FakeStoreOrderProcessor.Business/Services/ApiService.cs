@@ -1,4 +1,5 @@
-﻿using FakeStoreOrderProcessor.Business.Services.Interfaces;
+﻿using FakeStoreOrderProcessor.Business.Repositories.Interfaces;
+using FakeStoreOrderProcessor.Business.Services.Interfaces;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -11,12 +12,12 @@ namespace FakeStoreOrderProcessor.Business.Services
     public class ApiService : IApiService
     {
         private const string _className = "ApiService";
-        private readonly ILogger<ApiService> _logger;
 
-        public ApiService(ILogger<ApiService> logger)
+        public IProductRepository Products { get; }
+
+        public ApiService(IProductRepository productRepository)
         {
-            _logger = logger;
+            Products = productRepository;
         }
-
     }
 }

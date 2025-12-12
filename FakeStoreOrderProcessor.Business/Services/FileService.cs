@@ -16,27 +16,30 @@ namespace FakeStoreOrderProcessor.Business.Services
         private const string _className = "FileService";
         private readonly ILogger<FileService> _logger;
         private readonly IOptions<ServiceSettings> _settings;
-        private string? ordersFolder;
-        private string? processedFilesFolder;
-        private string? cancelledOrdersFolder;
-        private string? invalidFilesFolder;
+        private string? _ordersFolder;
+        private string? _processedFilesFolder;
+        private string? _processingFilesFolder;
+        private string? _cancelledOrdersFolder;
+        private string? _invalidFilesFolder;
+        private string? _registeredProductsFolder;
 
         public FileService(ILogger<FileService> logger, IOptions<ServiceSettings> settings)
         {
             _logger = logger;
             _settings = settings;
 
-            ordersFolder = _settings.Value.OrdersFolder;
-            processedFilesFolder = _settings.Value.ProcessedFilesFolder;
-            cancelledOrdersFolder = _settings.Value.CancelledOrdersFolder;
-            invalidFilesFolder = _settings.Value.InvalidFilesFolder;
+            _ordersFolder = _settings.Value.OrdersFolder;
+            _processedFilesFolder = _settings.Value.ProcessedFilesFolder;
+            _cancelledOrdersFolder = _settings.Value.CancelledOrdersFolder;
+            _invalidFilesFolder = _settings.Value.InvalidFilesFolder;
+            _registeredProductsFolder = _settings.Value.RegisteredProductsFolder;
 
             ValidateAndCreateDirectories();
         }
 
         public List<string> GetAllFiles()
         {
-            var currentMonthOrdersFolder = Path.Combine(ordersFolder!, DateTime.Now.ToString("yyyy/MM"));
+            var currentMonthOrdersFolder = Path.Combine(_ordersFolder!, DateTime.Now.ToString("yyyy/MM"));
             if (!Directory.Exists(currentMonthOrdersFolder))
                 return new List<string>();
 
@@ -47,65 +50,100 @@ namespace FakeStoreOrderProcessor.Business.Services
             return files;
         }
 
+        public List<string> GetAllProcessingFiles()
+        {
+            var files = Directory.EnumerateFiles(_processingFilesFolder!, "*.*", SearchOption.AllDirectories)
+                .OrderBy(file => file)
+                .ToList();
+
+            return files;
+        }
+
         public void ValidateAndCreateDirectories()
         {
-            if (string.IsNullOrEmpty(ordersFolder))
-                throw new Exception("Orders folder was not provided!");
+            if (string.IsNullOrEmpty(_ordersFolder))
+                throw new Exception("Orders folder path was not provided!");
 
-            if (string.IsNullOrEmpty(processedFilesFolder))
-                throw new Exception("Processed files folder was not provided!");
+            if (string.IsNullOrEmpty(_processedFilesFolder))
+                throw new Exception("Processed files folder path was not provided!");
 
-            if (string.IsNullOrEmpty(cancelledOrdersFolder))
-                throw new Exception("Cancelled orders folder was not provided");
+            if (string.IsNullOrEmpty(_cancelledOrdersFolder))
+                throw new Exception("Cancelled orders folder path was not provided");
 
-            if (string.IsNullOrEmpty(invalidFilesFolder))
-                throw new Exception("Invalid files folder was not provided!");
+            if (string.IsNullOrEmpty(_invalidFilesFolder))
+                throw new Exception("Invalid files folder path was not provided!");
 
-            if (!Directory.Exists(ordersFolder))
+            if (string.IsNullOrEmpty(_registeredProductsFolder))
+                throw new Exception("Registered products folder path was not provided!");
+
+            if (string.IsNullOrEmpty(_processingFilesFolder))
+                throw new Exception("Processing files folder path was not provided!");
+
+            if (!Directory.Exists(_ordersFolder))
             {
-                Directory.CreateDirectory(ordersFolder);
-                _logger.LogDebug($"{_className} - ValidateAndCreateDirectories - Folder: {ordersFolder} created");
+                Directory.CreateDirectory(_ordersFolder);
+                _logger.LogDebug($"{_className} - ValidateAndCreateDirectories - Folder: {_ordersFolder} created");
             }
             else
             {
                 _logger.LogDebug($"{_className} - ValidateAndCreateDirectories - Orders folder already exists");
             }
 
-            if (!Directory.Exists(processedFilesFolder))
+            if (!Directory.Exists(_processedFilesFolder))
             {
-                Directory.CreateDirectory(processedFilesFolder);
-                _logger.LogDebug($"{_className} - ValidateAndCreateDirectories - Folder: {processedFilesFolder} created");
+                Directory.CreateDirectory(_processedFilesFolder);
+                _logger.LogDebug($"{_className} - ValidateAndCreateDirectories - Folder: {_processedFilesFolder} created");
             }
             else
             {
                 _logger.LogDebug($"{_className} - ValidateAndCreateDirectories - Processed files folder already exists");
             }
 
-            if (!Directory.Exists(cancelledOrdersFolder))
+            if (!Directory.Exists(_cancelledOrdersFolder))
             {
-                Directory.CreateDirectory(cancelledOrdersFolder);
-                _logger.LogDebug($"{_className} - ValidateAndCreateDirectories - Folder: {cancelledOrdersFolder} created");
+                Directory.CreateDirectory(_cancelledOrdersFolder);
+                _logger.LogDebug($"{_className} - ValidateAndCreateDirectories - Folder: {_cancelledOrdersFolder} created");
             }
             else
             {
                 _logger.LogDebug($"{_className} - ValidateAndCreateDirectories - Cancelled orders folder already exists");
             }
 
-            if (!Directory.Exists(invalidFilesFolder))
+            if (!Directory.Exists(_invalidFilesFolder))
             {
-                Directory.CreateDirectory(invalidFilesFolder);
-                _logger.LogDebug($"{_className} - ValidateAndCreateDirectories - Folder: {invalidFilesFolder} created");
+                Directory.CreateDirectory(_invalidFilesFolder);
+                _logger.LogDebug($"{_className} - ValidateAndCreateDirectories - Folder: {_invalidFilesFolder} created");
             }
             else
             {
-                _logger.LogDebug($"{_className} - ValidateAndCreateDirectories - InvalidFiles folder already exists");
+                _logger.LogDebug($"{_className} - ValidateAndCreateDirectories - Invalid files folder already exists");
+            }
+
+            if (!Directory.Exists(_registeredProductsFolder))
+            {
+                Directory.CreateDirectory(_registeredProductsFolder);
+                _logger.LogDebug($"{_className} - ValidateAndCreateDirectories - Folder: {_registeredProductsFolder} created");
+            }
+            else
+            {
+                _logger.LogDebug($"{_className} - ValidateAndCreateDirectories - Registered products folder already exists");
+            }
+
+            if (!Directory.Exists(_processingFilesFolder))
+            {
+                Directory.CreateDirectory(_processingFilesFolder);
+                _logger.LogDebug($"{_className} - ValidateAndCreateDirectories - Folder: {_processingFilesFolder} created");
+            }
+            else
+            {
+                _logger.LogDebug($"{_className} - ValidateAndCreateDirectories - Processing files folder already exists");
             }
         }
 
         public void MoveProcessedFile(string file)
         {
             string fileGuid = GetGuidFromOrderFile(file);
-            string processedFolder = Path.Combine(processedFilesFolder!, DateTime.Now.ToString("yyyy/MM/dd"), fileGuid).Replace(@"/", "\\");
+            string processedFolder = Path.Combine(_processedFilesFolder!, DateTime.Now.ToString("yyyy/MM/dd"), fileGuid).Replace(@"/", "\\");
 
             if (!Directory.Exists(processedFolder))
                 Directory.CreateDirectory(processedFolder);
@@ -126,7 +164,7 @@ namespace FakeStoreOrderProcessor.Business.Services
         public void MoveCancelledOrder(string file)
         {
             string fileGuid = GetGuidFromOrderFile(file);
-            string cancelledOrderFolder = Path.Combine(cancelledOrdersFolder!, DateTime.Now.ToString("yyyy/MM/dd")).Replace(@"/", "\\");
+            string cancelledOrderFolder = Path.Combine(_cancelledOrdersFolder!, DateTime.Now.ToString("yyyy/MM/dd")).Replace(@"/", "\\");
 
             if (!Directory.Exists(cancelledOrderFolder))
                 Directory.CreateDirectory(cancelledOrderFolder);
@@ -146,7 +184,8 @@ namespace FakeStoreOrderProcessor.Business.Services
 
         public void MoveInvalidFile(string file)
         {
-            string invalidFileFolder = Path.Combine(invalidFilesFolder!, DateTime.Now.ToString("yyyy/MM/dd")).Replace(@"/", "\\");
+            string invalidFileFolder = Path.Combine(_invalidFilesFolder!, DateTime.Now.ToString("yyyy/MM/dd")).Replace(@"/", "\\");
+            string fileName = Path.GetFileName(file);
 
             try
             {
@@ -155,14 +194,14 @@ namespace FakeStoreOrderProcessor.Business.Services
             }
             catch (InvalidFileException)
             {
-                _logger.LogDebug($"{_className} - MoveInvalidFile - Could not obtain order guid from file: {file} - Invalid folder will have 'InvalidName' instead as folder name");
-                invalidFileFolder = Path.Combine(invalidFileFolder, "InvalidName");
+                _logger.LogDebug($"{_className} - MoveInvalidFile - Could not obtain order guid from file: {Path.GetFileName(file)} - Invalid folder will have 'InvalidNameFiles' instead as folder name");
+                invalidFileFolder = Path.Combine(invalidFileFolder, "InvalidNameFiles");
             }
 
             if (!Directory.Exists(invalidFileFolder))
                 Directory.CreateDirectory(invalidFileFolder);
 
-            string destFile = Path.Combine(invalidFileFolder, Path.GetFileName(file));
+            string destFile = Path.Combine(invalidFileFolder, fileName);
             if (!File.Exists(destFile))
             {
                 File.Move(file, destFile);
@@ -170,7 +209,7 @@ namespace FakeStoreOrderProcessor.Business.Services
             }
             else
             {
-                string copyFileName = Path.GetFileName(destFile) + DateTime.Now.Ticks + "_copy";
+                string copyFileName = DateTime.Now.Ticks + "_copy_" + fileName;
                 destFile = Path.Combine(invalidFileFolder, copyFileName);
 
                 try
@@ -198,6 +237,39 @@ namespace FakeStoreOrderProcessor.Business.Services
             }
         }
 
+        public void MoveRegisteredProduct(string file)
+        {
+            string fileName = Path.GetFileName(file);
+            string destFile = Path.Combine(_registeredProductsFolder!, fileName);
+
+            if (!File.Exists(destFile))
+            {
+                File.Move(file, destFile);
+                _logger.LogDebug($"{_className} - MoveRegisteredProduct - File moved: {destFile}");
+            }
+            else
+            {
+                throw new InvalidFileException("File already exists in registered products folder!");
+            }
+        }
+
+        public string MoveToProcessing(string file)
+        {
+            string fileName = Path.GetFileName(file);
+            string destFile = Path.Combine(_processingFilesFolder!, fileName);
+
+            if (!File.Exists(destFile))
+            {
+                File.Move(file, destFile);
+                _logger.LogDebug($"{_className} - MoveToProcessing - File moved: {destFile}");
+                return destFile;
+            }
+            else
+            {
+                throw new InvalidFileException("File already exists in processing files folder!");
+            }
+        }
+
         public string GetGuidFromOrderFile(string file)
         {
             var regex = new Regex(@"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
@@ -215,7 +287,7 @@ namespace FakeStoreOrderProcessor.Business.Services
             }
             else
             {
-                throw new InvalidFileException($"Could not obtain order guid from file: {file}");
+                throw new InvalidFileException($"Could not obtain order guid from file: {fileName}");
             }
         }
 

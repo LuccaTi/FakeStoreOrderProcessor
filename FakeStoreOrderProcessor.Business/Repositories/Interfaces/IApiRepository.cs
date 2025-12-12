@@ -6,12 +6,15 @@ using System.Threading.Tasks;
 
 namespace FakeStoreOrderProcessor.Business.Repositories.Interfaces
 {
-    public interface IApiRepository<T> where T : class
+    public interface IApiRepository<TEntity, TCreateEntity, TUpdateEntity> 
+        where TEntity : class
+        where TCreateEntity : class
+        where TUpdateEntity : class
     {
-        public Task<List<T>?> GetAllAsync();
-        public Task<T?> GetByIdAsync(long id);
-        public Task<T?> PostAsync(T entity);
-        public Task PatchAsync(long id, T entity);
+        public Task<List<TEntity>?> GetAllAsync();
+        public Task<TEntity?> GetByIdAsync(long id);
+        public Task<TEntity?> PostAsync(TCreateEntity entity);
+        public Task PatchAsync(long id, TUpdateEntity entity);
         public Task DeleteAsync(long id);
     }
 }

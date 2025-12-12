@@ -1,4 +1,5 @@
-﻿using System;
+﻿using FakeStoreOrderProcessor.Business.Repositories.Interfaces;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,5 +9,6 @@ namespace FakeStoreOrderProcessor.Business.Services.Interfaces
 {
     public interface IApiService
     {
+        IProductRepository Products { get; }
     }
 }

@@ -27,8 +27,8 @@ namespace FakeStoreOrderProcessor.Business
 
         protected override async Task ExecuteAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation($"{_className} - Application started successfully!");
-            _logger.LogInformation($"{_className} - Starting processing tasks...");
+            _logger.LogInformation($"{_className} - ExecuteAsync - Application started successfully!");
+            _logger.LogInformation($"{_className} - ExecuteAsync - Starting processing tasks...");
 
             foreach(var orchestrator in _orchestrators)
             {
@@ -37,13 +37,13 @@ namespace FakeStoreOrderProcessor.Business
 
             await Task.WhenAll(_tasks);
 
-            _logger.LogInformation($"{_className} - All tasks concluded, stopping service...");
+            _logger.LogInformation($"{_className} - ExecuteAsync - All tasks concluded, stopping service...");
         }
         public override async Task StopAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation($"{_className} - Stop signal received");
+            _logger.LogInformation($"{_className} - StopAsync - Stop signal received");
             await base.StopAsync(cancellationToken);
-            _logger.LogInformation($"{_className} - Service finalized.");
+            _logger.LogInformation($"{_className} - StopAsync - Service finalized.");
         }
     }
 }

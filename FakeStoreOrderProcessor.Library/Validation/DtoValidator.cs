@@ -18,9 +18,10 @@ namespace FakeStoreOrderProcessor.Library.Validation
 
             if (!isValid)
             {
+                string dtoTypeName = typeof(T).Name;
                 var errorMessages = validationResults.Select(r => r.ErrorMessage);
                 string fullErrorMessage = string.Join("\n", errorMessages);
-                throw new ValidationException($"Invalid DTO => {dto.GetType} - The following errors occurred:\n{fullErrorMessage}");
+                throw new ValidationException($"Invalid DTO: {dtoTypeName} - The following errors occurred:\n{fullErrorMessage}\n");
             }
         }
     }

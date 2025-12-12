@@ -15,8 +15,10 @@ namespace FakeStoreOrderProcessor.Business
         public int Interval { get; set; }
         public string? OrdersFolder { get; set; }
         public string? ProcessedFilesFolder { get; set; }
+        public string? ProcessingFilesFolder { get; set; }
         public string? CancelledOrdersFolder { get; set; }
         public string? InvalidFilesFolder { get; set; }
+        public string? RegisteredProductsFolder { get; set; }
         public string? ApiUrl { get; set; }
         public int Timeout { get; set; }
     }
