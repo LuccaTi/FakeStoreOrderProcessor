@@ -14,10 +14,12 @@ namespace FakeStoreOrderProcessor.Business.Services
         private const string _className = "ApiService";
 
         public IProductRepository Products { get; }
+        public IProcessedFileLogRepository ProcessedFileLogs { get; }
 
-        public ApiService(IProductRepository productRepository)
+        public ApiService(IProductRepository productRepository, IProcessedFileLogRepository processedFileLogRepository)
         {
             Products = productRepository;
+            ProcessedFileLogs = processedFileLogRepository;
         }
     }
 }

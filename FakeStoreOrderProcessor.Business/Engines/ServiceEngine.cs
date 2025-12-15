@@ -45,18 +45,18 @@ namespace FakeStoreOrderProcessor.Business.Engines
                 var processingProductFiles = processingFiles.Where(file => Path.GetFileName(file).Contains("product")).ToList();
                 foreach (var file in processingProductFiles)
                 {
-                    await ProcessSingleProductFile(file, false);
+                    await ProcessSingleProductFile(file, false, cancellationToken);
                 }
             }
 
             var productFiles = files.Where(file => Path.GetFileName(file).Contains("product")).ToList();
             foreach (var file in productFiles)
             {
-                await ProcessSingleProductFile(file, true);
+                await ProcessSingleProductFile(file, true, cancellationToken);
             }
         }
 
-        public async Task ProcessSingleProductFile(string file, bool moveToProcessing)
+        public async Task ProcessSingleProductFile(string file, bool moveToProcessing, CancellationToken cancellationToken)
         {
 
             string currentFile = file;
@@ -65,10 +65,12 @@ namespace FakeStoreOrderProcessor.Business.Engines
 
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 if (moveToProcessing)
                     currentFile = _fileService.MoveToProcessing(file);
 
-                string jsonContent = File.ReadAllText(currentFile);
+                string jsonContent = await File.ReadAllTextAsync(currentFile, cancellationToken);
                 var productToRegister = JsonSerializer.Deserialize<ProductStockRegisterDto>(jsonContent);
                 DtoValidator.Validate(productToRegister!);
 
@@ -79,25 +81,32 @@ namespace FakeStoreOrderProcessor.Business.Engines
                 };
                 _logger.LogDebug($"{_className} - ProcessSingleProductFile - Product titled: {productTitleDescription.Title}");
 
-                var product = await _apiService.Products.GetByTitleDescription(productTitleDescription);
+                var product = await _apiService.Products.GetByTitleDescription(productTitleDescription, cancellationToken);
                 if (product == null)
                 {
                     var createProduct = _mapper.Map<CreateProductDto>(productToRegister);
-                    var postedProduct = await _apiService.Products.PostAsync(createProduct);
-
-
-                    // Implementar a alteração na DB API - alteração está no copilot
-
-
+                    var postedProduct = await _apiService.Products.PostWithFileNameAsync(createProduct, fileName, cancellationToken);
                     _logger.LogDebug($"{_className} - ProcessSingleProductFile - Posted product titled: {productTitleDescription.Title} - ID: {postedProduct!.Id} in database");
                     _fileService.MoveRegisteredProduct(currentFile);
-
                 }
                 else
                 {
-                    _logger.LogDebug($"{_className} - ProcessSingleProductFile - Product already posted.");
-                    _fileService.DeleteFile(currentFile);
+                    _logger.LogDebug($"{_className} - ProcessSingleProductFile - Product already posted, checking if file should be deleted...");
+                    var processedFile = await _apiService.ProcessedFileLogs.GetByFileNameAsync(fileName, cancellationToken);
+                    if(processedFile != null)
+                    {
+                        _fileService.MoveRegisteredProduct(currentFile);
+                    }
+                    else
+                    {
+                        _fileService.DeleteFile(currentFile);
+                    }
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning($"{_className} - ProcessSingleProductFile - Operation was cancelled for file: {fileName}");
+                throw;
             }
             catch (JsonException ex)
             {

@@ -10,5 +10,6 @@ namespace FakeStoreOrderProcessor.Business.Services.Interfaces
     public interface IApiService
     {
         IProductRepository Products { get; }
+        IProcessedFileLogRepository ProcessedFileLogs { get; }
     }
 }

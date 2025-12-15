@@ -11,10 +11,10 @@ namespace FakeStoreOrderProcessor.Business.Repositories.Interfaces
         where TCreateEntity : class
         where TUpdateEntity : class
     {
-        public Task<List<TEntity>?> GetAllAsync();
-        public Task<TEntity?> GetByIdAsync(long id);
-        public Task<TEntity?> PostAsync(TCreateEntity entity);
-        public Task PatchAsync(long id, TUpdateEntity entity);
-        public Task DeleteAsync(long id);
+        public Task<List<TEntity>?> GetAllAsync(CancellationToken cancellationToken);
+        public Task<TEntity?> GetByIdAsync(long id, CancellationToken cancellationToken);
+        public Task<TEntity?> PostAsync(TCreateEntity entity, CancellationToken cancellationToken);
+        public Task PatchAsync(long id, TUpdateEntity entity, CancellationToken cancellationToken);
+        public Task DeleteAsync(long id, CancellationToken cancellationToken);
     }
 }

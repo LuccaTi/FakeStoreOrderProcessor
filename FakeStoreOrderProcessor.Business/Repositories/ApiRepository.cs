@@ -16,44 +16,40 @@ namespace FakeStoreOrderProcessor.Business.Repositories
         where TUpdateEntity : class
     {
         protected readonly HttpClient _httpClient;
-        protected readonly ILogger<ApiRepository<TEntity, TCreateEntity, TUpdateEntity>> _logger;
         protected readonly string _endpointPath;
-        protected readonly string _className;
 
-        public ApiRepository(IHttpClientFactory httpClientFactory, ILogger<ApiRepository<TEntity, TCreateEntity, TUpdateEntity>> logger, string endpointPath, string className)
+        public ApiRepository(IHttpClientFactory httpClientFactory, string endpointPath)
         {
             _httpClient = httpClientFactory.CreateClient("ApiClient");
-            _logger = logger;
             _endpointPath = endpointPath;
-            _className = className;
         }
         
-        public async Task<List<TEntity>?> GetAllAsync()
+        public async Task<List<TEntity>?> GetAllAsync(CancellationToken cancellationToken)
         {
-            return await _httpClient.GetFromJsonAsync<List<TEntity>>(_endpointPath);
+            return await _httpClient.GetFromJsonAsync<List<TEntity>>(_endpointPath, cancellationToken);
         }
 
-        public async Task<TEntity?> GetByIdAsync(long id)
+        public async Task<TEntity?> GetByIdAsync(long id, CancellationToken cancellationToken)
         {
-            return await _httpClient.GetFromJsonAsync<TEntity>($"{_endpointPath}/{id}");
+            return await _httpClient.GetFromJsonAsync<TEntity>($"{_endpointPath}/{id}", cancellationToken);
         }
 
-        public async Task<TEntity?> PostAsync(TCreateEntity entity)
+        public async Task<TEntity?> PostAsync(TCreateEntity entity, CancellationToken cancellationToken)
         {
-            var response = await _httpClient.PostAsJsonAsync(_endpointPath, entity);
+            var response = await _httpClient.PostAsJsonAsync(_endpointPath, entity, cancellationToken);
             response.EnsureSuccessStatusCode();
-            return await response.Content.ReadFromJsonAsync<TEntity>();
+            return await response.Content.ReadFromJsonAsync<TEntity>(cancellationToken);
         }
 
-        public async Task PatchAsync(long id, TUpdateEntity entity)
+        public async Task PatchAsync(long id, TUpdateEntity entity, CancellationToken cancellationToken)
         {
-            var response = await _httpClient.PatchAsJsonAsync($"{_endpointPath}/{id}", entity);
+            var response = await _httpClient.PatchAsJsonAsync($"{_endpointPath}/{id}", entity, cancellationToken);
             response.EnsureSuccessStatusCode();
         }
 
-        public async Task DeleteAsync(long id)
+        public async Task DeleteAsync(long id, CancellationToken cancellationToken)
         {
-            var response = await _httpClient.DeleteAsync($"{_endpointPath}/{id}");
+            var response = await _httpClient.DeleteAsync($"{_endpointPath}/{id}", cancellationToken);
             response.EnsureSuccessStatusCode();
         }
     }

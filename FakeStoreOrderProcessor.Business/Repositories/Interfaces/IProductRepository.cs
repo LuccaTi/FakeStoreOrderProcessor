@@ -9,7 +9,8 @@ namespace FakeStoreOrderProcessor.Business.Repositories.Interfaces
 {
     public interface IProductRepository : IApiRepository<ProductDto, CreateProductDto, UpdateProductDto>
     {
-        public Task<ProductDto?> GetByTitleDescription(TitleDescriptionDto titleDescriptionDto);
-        public Task<bool> ProductExistsAsync(long id);
+        public Task<ProductDto?> GetByTitleDescription(TitleDescriptionDto titleDescriptionDto, CancellationToken cancellationToken);
+        public Task<ProductDto?> PostWithFileNameAsync(CreateProductDto productDto, string fileName, CancellationToken cancellationToken);
+        public Task<bool> ProductExistsAsync(long id, CancellationToken cancellationToken);
     }
 }

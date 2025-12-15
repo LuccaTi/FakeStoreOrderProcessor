@@ -30,6 +30,7 @@ namespace FakeStoreOrderProcessor.Business.Services
 
             _ordersFolder = _settings.Value.OrdersFolder;
             _processedFilesFolder = _settings.Value.ProcessedFilesFolder;
+            _processingFilesFolder = _settings.Value.ProcessingFilesFolder;
             _cancelledOrdersFolder = _settings.Value.CancelledOrdersFolder;
             _invalidFilesFolder = _settings.Value.InvalidFilesFolder;
             _registeredProductsFolder = _settings.Value.RegisteredProductsFolder;
