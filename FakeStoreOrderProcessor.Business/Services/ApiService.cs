@@ -15,11 +15,18 @@ namespace FakeStoreOrderProcessor.Business.Services
 
         public IProductRepository Products { get; }
         public IProcessedFileLogRepository ProcessedFileLogs { get; }
+        public IAddressRepository Addresses { get; }
+        public ICustomerRepository Customers { get; }
 
-        public ApiService(IProductRepository productRepository, IProcessedFileLogRepository processedFileLogRepository)
+        public ApiService(IProductRepository productRepository, 
+            IProcessedFileLogRepository processedFileLogRepository,
+            IAddressRepository addressRepository,
+            ICustomerRepository customersRepository)
         {
             Products = productRepository;
             ProcessedFileLogs = processedFileLogRepository;
+            Addresses = addressRepository;
+            Customers = customersRepository;
         }
     }
 }

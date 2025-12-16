@@ -1,20 +1,24 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text;
-using System.Text.Json;
-using System.Threading.Tasks;
-using System.Transactions;
-using AutoMapper;
+﻿using AutoMapper;
 using FakeStoreOrderProcessor.Business.Engines.Interfaces;
 using FakeStoreOrderProcessor.Business.Exceptions;
 using FakeStoreOrderProcessor.Business.Services.Interfaces;
+using FakeStoreOrderProcessor.Library.DTO.Address;
+using FakeStoreOrderProcessor.Library.DTO.Customer;
 using FakeStoreOrderProcessor.Library.DTO.Json;
 using FakeStoreOrderProcessor.Library.DTO.Product;
 using FakeStoreOrderProcessor.Library.Validation;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.Linq;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Transactions;
 
 namespace FakeStoreOrderProcessor.Business.Engines
 {
@@ -47,12 +51,24 @@ namespace FakeStoreOrderProcessor.Business.Engines
                 {
                     await ProcessSingleProductFile(file, false, cancellationToken);
                 }
+
+                var processingOrderCreatedFiles = processingFiles.Where(file => Path.GetFileName(file).Contains("created")).ToList();
+                foreach (var file in processingOrderCreatedFiles)
+                {
+                    await ProcessSingleOrderCreatedFile(file, false, cancellationToken);
+                }
             }
 
             var productFiles = files.Where(file => Path.GetFileName(file).Contains("product")).ToList();
             foreach (var file in productFiles)
             {
                 await ProcessSingleProductFile(file, true, cancellationToken);
+            }
+
+            var orderCreatedFiles = files.Where(file => Path.GetFileName(file).Contains("created")).ToList();
+            foreach (var file in orderCreatedFiles)
+            {
+                await ProcessSingleOrderCreatedFile(file, true, cancellationToken);
             }
         }
 
@@ -93,7 +109,7 @@ namespace FakeStoreOrderProcessor.Business.Engines
                 {
                     _logger.LogDebug($"{_className} - ProcessSingleProductFile - Product already posted, checking if file should be deleted...");
                     var processedFile = await _apiService.ProcessedFileLogs.GetByFileNameAsync(fileName, cancellationToken);
-                    if(processedFile != null)
+                    if (processedFile != null)
                     {
                         _fileService.MoveRegisteredProduct(currentFile);
                     }
@@ -126,6 +142,107 @@ namespace FakeStoreOrderProcessor.Business.Engines
             catch (HttpRequestException ex)
             {
                 _logger.LogError($"{_className} - ProcessSingleProductFile - Error: {ex}. It will be retried in the next iteration.");
+            }
+        }
+
+        public async Task ProcessSingleOrderCreatedFile(string file, bool moveToProcessing, CancellationToken cancellationToken)
+        {
+            string currentFile = file;
+            string fileName = Path.GetFileName(file);
+            _logger.LogDebug($"{_className} - ProcessSingleOrderCreatedFile - Processing file: {fileName}");
+
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (moveToProcessing)
+                    currentFile = _fileService.MoveToProcessing(file);
+
+                string jsonContent = await File.ReadAllTextAsync(currentFile, cancellationToken);
+
+                var serializerOptions = new JsonSerializerOptions
+                {
+                    Converters = { new JsonStringEnumConverter() }
+                };
+                var orderToRegister = JsonSerializer.Deserialize<OrderCreatedDto>(jsonContent, serializerOptions);
+                DtoValidator.Validate(orderToRegister!);
+
+                await ProcessAddress(orderToRegister, cancellationToken);
+
+                string street = orderToRegister!.Customer!.Address!.Street!;
+                int number = orderToRegister.Customer.Address.Number;
+
+                await ProcessCustomer(orderToRegister, street, number, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning($"{_className} - ProcessSingleOrderCreatedFile - Operation was cancelled for file: {fileName}");
+                throw;
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError($"{_className} - ProcessSingleOrderCreatedFile - Error: {ex.Message}");
+                _fileService.MoveInvalidFile(currentFile);
+            }
+            catch (InvalidFileException ex)
+            {
+                _logger.LogError($"{_className} - ProcessSingleOrderCreatedFile - Error: {ex.Message}");
+                _fileService.MoveInvalidFile(currentFile);
+            }
+            catch (ValidationException ex)
+            {
+                _logger.LogError($"{_className} - ProcessSingleOrderCreatedFile - Error: {ex.Message}");
+                _fileService.MoveInvalidFile(currentFile);
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError($"{_className} - ProcessSingleOrderCreatedFile - Error: {ex}. It will be retried in the next iteration.");
+            }
+        }
+   
+        public async Task ProcessAddress(OrderCreatedDto? orderToRegister, CancellationToken cancellationToken)
+        {
+            var streetNumber = new StreetNumberDto()
+            {
+                Street = orderToRegister!.Customer!.Address!.Street,
+                Number = orderToRegister.Customer.Address.Number
+            };
+            var address = await _apiService.Addresses.GetByStreetNumberAsync(streetNumber, cancellationToken);
+            if (address == null)
+            {
+                _logger.LogDebug($"{_className} - ProcessSingleOrderCreatedFile - Posting address with street: {streetNumber.Street} and number: {streetNumber.Number}");
+                var addressToPost = _mapper.Map<CreateAddressDto>(orderToRegister.Customer.Address);
+                var postedAddress = await _apiService.Addresses.PostAsync(addressToPost, cancellationToken);
+                _logger.LogDebug($"{_className} - ProcessSingleOrderCreatedFIle - Address posted");
+            }
+        }
+
+        public async Task ProcessCustomer(OrderCreatedDto? orderToRegister, string street, int number, CancellationToken cancellationToken)
+        {
+            var loginRequest = new LoginRequestDto()
+            {
+                Username = orderToRegister!.Customer!.Username,
+                Password = orderToRegister!.Customer!.Password
+            };
+            var customer = await _apiService.Customers.GetByLoginRequestAsync(loginRequest, cancellationToken);
+            if (customer == null)
+            {
+                _logger.LogDebug($"{_className} - ProcessSingleOrderCreatedFile - Posting customer with username: {orderToRegister.Customer.Username}");
+                var customerToPost = _mapper.Map<CreateCustomerDto>(orderToRegister.Customer);
+
+                var streetNumber = new StreetNumberDto()
+                {
+                    Street = street,
+                    Number = number
+                };
+
+                customerToPost.FirstName = orderToRegister.Customer.Name!.FirstName;
+                customerToPost.LastName = orderToRegister.Customer.Name!.LastName;
+                var tempAddress = await _apiService.Addresses.GetByStreetNumberAsync(streetNumber, cancellationToken);
+                customerToPost.AddressId = tempAddress!.Id;
+
+                var postedCustomer = await _apiService.Customers.PostAsync(customerToPost, cancellationToken);
+                _logger.LogDebug($"{_className} - ProcessSingleOrderCreatedFile - Customer posted");
             }
         }
     }

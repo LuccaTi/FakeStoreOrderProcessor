@@ -11,5 +11,7 @@ namespace FakeStoreOrderProcessor.Business.Services.Interfaces
     {
         IProductRepository Products { get; }
         IProcessedFileLogRepository ProcessedFileLogs { get; }
+        IAddressRepository Addresses { get; }
+        ICustomerRepository Customers { get; }
     }
 }
