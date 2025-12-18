@@ -58,6 +58,24 @@ namespace FakeStoreOrderProcessor.Business.Engines
                 {
                     await ProcessSingleOrderCreatedFile(file, false, cancellationToken);
                 }
+
+                var processingOrderPaymentFiles = processingFiles.Where(file => Path.GetFileName(file).Contains("payment")).ToList();
+                foreach(var file in processingOrderPaymentFiles)
+                {
+                    await ProcessSingleOrderPaymentFile(file, false, cancellationToken);
+                }
+
+                var processingOrderShippedFiles = processingFiles.Where(file => Path.GetFileName(file).Contains("shipped")).ToList();
+                foreach (var file in processingOrderShippedFiles)
+                {
+                    await ProcessSingleOrderShippedFile(file, false, cancellationToken);
+                }
+
+                var processingOrderDeliveredFiles = processingFiles.Where(file => Path.GetFileName(file).Contains("delivered")).ToList();
+                foreach (var file in processingOrderDeliveredFiles)
+                {
+                    await ProcessSingleOrderDeliveredFile(file, false, cancellationToken);
+                }
             }
 
             var productFiles = files.Where(file => Path.GetFileName(file).Contains("product")).ToList();
@@ -70,6 +88,24 @@ namespace FakeStoreOrderProcessor.Business.Engines
             foreach (var file in orderCreatedFiles)
             {
                 await ProcessSingleOrderCreatedFile(file, true, cancellationToken);
+            }
+
+            var orderPaymentFiles = files.Where(file => Path.GetFileName(file).Contains("payment")).ToList();
+            foreach(var file in orderPaymentFiles)
+            {
+                await ProcessSingleOrderPaymentFile(file, true, cancellationToken);
+            }
+
+            var OrderShippedFiles = files.Where(file => Path.GetFileName(file).Contains("shipped")).ToList();
+            foreach (var file in OrderShippedFiles)
+            {
+                await ProcessSingleOrderShippedFile(file, false, cancellationToken);
+            }
+
+            var OrderDeliveredFiles = files.Where(file => Path.GetFileName(file).Contains("delivered")).ToList();
+            foreach (var file in OrderDeliveredFiles)
+            {
+                await ProcessSingleOrderDeliveredFile(file, false, cancellationToken);
             }
         }
 
@@ -239,6 +275,213 @@ namespace FakeStoreOrderProcessor.Business.Engines
             catch (HttpRequestException ex)
             {
                 _logger.LogError($"{_className} - ProcessSingleOrderCreatedFile - Error: {ex}. It will be retried in the next iteration.");
+            }
+        }
+
+        public async Task ProcessSingleOrderPaymentFile(string file, bool moveToProcessing, CancellationToken cancellationToken)
+        {
+            string currentFile = file;
+            string fileName = Path.GetFileName(file);
+            _logger.LogDebug($"{_className} - ProcessSingleOrderPaymentFile - Processing file: {fileName}");
+            
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (moveToProcessing)
+                    currentFile = _fileService.MoveToProcessing(file);
+
+                string jsonContent = await File.ReadAllTextAsync(currentFile, cancellationToken);
+
+                var serializerOptions = new JsonSerializerOptions
+                {
+                    Converters = { new JsonStringEnumConverter() }
+                };
+                var orderPayed = JsonSerializer.Deserialize<OrderPaymentConfirmedDto>(jsonContent, serializerOptions);
+                DtoValidator.Validate(orderPayed!);
+
+                _logger.LogDebug($"{_className} - ProcessSingleOrderPaymentFile - Patching order with guid: {orderPayed!.OrderGuid}");
+
+                var orderToPatch = await _apiService.Orders.GetByGuidWithOrderItemsAsync(orderPayed!.OrderGuid!, cancellationToken);
+                var patchedOrder = _mapper.Map<UpdateOrderDto>(orderPayed);
+                foreach(var item in orderToPatch!.OrderItems)
+                {
+                    patchedOrder.OrderItems.Add(new CreateOrderItemDto()
+                    {
+                        ProductId = item.ProductId,
+                        Quantity = item.Quantity,
+                        TotalPrice = item.TotalPrice
+                    });
+                }
+                patchedOrder.OrderDate = orderToPatch.OrderDate;
+
+                await _apiService.Orders.PatchOrderAsync(orderPayed!.OrderGuid!, patchedOrder, cancellationToken);
+                _logger.LogDebug($"{_className} - ProcessSingleOrderPaymentFile - Order patched");
+
+                _fileService.MoveProcessedFile(currentFile);
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning($"{_className} - ProcessSingleOrderPaymentFile - Operation was cancelled for file: {fileName}");
+                throw;
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError($"{_className} - ProcessSingleOrderPaymentFile - Error: {ex.Message}");
+                _fileService.MoveInvalidFile(currentFile);
+            }
+            catch (InvalidFileException ex)
+            {
+                _logger.LogError($"{_className} - ProcessSingleOrderPaymentFile - Error: {ex.Message}");
+                _fileService.MoveInvalidFile(currentFile);
+            }
+            catch (ValidationException ex)
+            {
+                _logger.LogError($"{_className} - ProcessSingleOrderPaymentFile - Error: {ex.Message}");
+                _fileService.MoveInvalidFile(currentFile);
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError($"{_className} - ProcessSingleOrderPaymentFile - Error: {ex}. It will be retried in the next iteration.");
+            }
+        }
+
+        public async Task ProcessSingleOrderShippedFile(string file, bool moveToProcessing, CancellationToken cancellationToken)
+        {
+            string currentFile = file;
+            string fileName = Path.GetFileName(file);
+            _logger.LogDebug($"{_className} - ProcessSingleOrderShippedFile - Processing file: {fileName}");
+
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (moveToProcessing)
+                    currentFile = _fileService.MoveToProcessing(file);
+
+                string jsonContent = await File.ReadAllTextAsync(currentFile, cancellationToken);
+
+                var serializerOptions = new JsonSerializerOptions
+                {
+                    Converters = { new JsonStringEnumConverter() }
+                };
+                var orderShipped = JsonSerializer.Deserialize<OrderShippedDto>(jsonContent, serializerOptions);
+                DtoValidator.Validate(orderShipped!);
+
+                _logger.LogDebug($"{_className} - ProcessSingleOrderShippedFile - Patching order with guid: {orderShipped!.OrderGuid}");
+
+                var orderToPatch = await _apiService.Orders.GetByGuidWithOrderItemsAsync(orderShipped!.OrderGuid!, cancellationToken);
+                var patchedOrder = _mapper.Map<UpdateOrderDto>(orderShipped);
+                foreach (var item in orderToPatch!.OrderItems)
+                {
+                    patchedOrder.OrderItems.Add(new CreateOrderItemDto()
+                    {
+                        ProductId = item.ProductId,
+                        Quantity = item.Quantity,
+                        TotalPrice = item.TotalPrice
+                    });
+                }
+                patchedOrder.OrderDate = orderToPatch.OrderDate;
+                patchedOrder.PaymentDate = orderToPatch.PaymentDate;
+
+                await _apiService.Orders.PatchOrderAsync(orderShipped!.OrderGuid!, patchedOrder, cancellationToken);
+                _logger.LogDebug($"{_className} - ProcessSingleOrderShippedFile - Order patched");
+
+                _fileService.MoveProcessedFile(currentFile);
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning($"{_className} - ProcessSingleOrderShippedFile - Operation was cancelled for file: {fileName}");
+                throw;
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError($"{_className} - ProcessSingleOrderShippedFile - Error: {ex.Message}");
+                _fileService.MoveInvalidFile(currentFile);
+            }
+            catch (InvalidFileException ex)
+            {
+                _logger.LogError($"{_className} - ProcessSingleOrderShippedFile - Error: {ex.Message}");
+                _fileService.MoveInvalidFile(currentFile);
+            }
+            catch (ValidationException ex)
+            {
+                _logger.LogError($"{_className} - ProcessSingleOrderShippedFile - Error: {ex.Message}");
+                _fileService.MoveInvalidFile(currentFile);
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError($"{_className} - ProcessSingleOrderShippedFile - Error: {ex}. It will be retried in the next iteration.");
+            }
+        }
+
+        public async Task ProcessSingleOrderDeliveredFile(string file, bool moveToProcessing, CancellationToken cancellationToken)
+        {
+            string currentFile = file;
+            string fileName = Path.GetFileName(file);
+            _logger.LogDebug($"{_className} - ProcessSingleOrderDeliveredFile - Processing file: {fileName}");
+
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (moveToProcessing)
+                    currentFile = _fileService.MoveToProcessing(file);
+
+                string jsonContent = await File.ReadAllTextAsync(currentFile, cancellationToken);
+
+                var serializerOptions = new JsonSerializerOptions
+                {
+                    Converters = { new JsonStringEnumConverter() }
+                };
+                var orderDelivered = JsonSerializer.Deserialize<OrderDeliveredDto>(jsonContent, serializerOptions);
+                DtoValidator.Validate(orderDelivered!);
+
+                _logger.LogDebug($"{_className} - ProcessSingleOrderDeliveredFile - Patching order with guid: {orderDelivered!.OrderGuid}");
+
+                var orderToPatch = await _apiService.Orders.GetByGuidWithOrderItemsAsync(orderDelivered!.OrderGuid!, cancellationToken);
+                var patchedOrder = _mapper.Map<UpdateOrderDto>(orderDelivered);
+                foreach (var item in orderToPatch!.OrderItems)
+                {
+                    patchedOrder.OrderItems.Add(new CreateOrderItemDto()
+                    {
+                        ProductId = item.ProductId,
+                        Quantity = item.Quantity,
+                        TotalPrice = item.TotalPrice
+                    });
+                }
+                patchedOrder.OrderDate = orderToPatch.OrderDate;
+                patchedOrder.PaymentDate = orderToPatch.PaymentDate;
+                patchedOrder.ShippedDate = orderToPatch.ShippedDate;
+
+                await _apiService.Orders.PatchOrderAsync(orderDelivered!.OrderGuid!, patchedOrder, cancellationToken);
+                _logger.LogDebug($"{_className} - ProcessSingleOrderDeliveredFile - Order patched");
+
+                _fileService.MoveProcessedFile(currentFile);
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning($"{_className} - ProcessSingleOrderDeliveredFile - Operation was cancelled for file: {fileName}");
+                throw;
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError($"{_className} - ProcessSingleOrderDeliveredFile - Error: {ex.Message}");
+                _fileService.MoveInvalidFile(currentFile);
+            }
+            catch (InvalidFileException ex)
+            {
+                _logger.LogError($"{_className} - ProcessSingleOrderDeliveredFile - Error: {ex.Message}");
+                _fileService.MoveInvalidFile(currentFile);
+            }
+            catch (ValidationException ex)
+            {
+                _logger.LogError($"{_className} - ProcessSingleOrderDeliveredFile - Error: {ex.Message}");
+                _fileService.MoveInvalidFile(currentFile);
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError($"{_className} - ProcessSingleOrderDeliveredFile - Error: {ex}. It will be retried in the next iteration.");
             }
         }
 
