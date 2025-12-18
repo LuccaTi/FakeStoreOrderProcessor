@@ -143,13 +143,25 @@ namespace FakeStoreOrderProcessor.Business.Services
 
         public void MoveProcessedFile(string file)
         {
+            string fileName = Path.GetFileName(file);
             string fileGuid = GetGuidFromOrderFile(file);
-            string processedFolder = Path.Combine(_processedFilesFolder!, DateTime.Now.ToString("yyyy/MM/dd"), fileGuid).Replace(@"/", "\\");
+            string? processedFolder = Path.Combine(_processedFilesFolder!, DateTime.Now.ToString("yyyy/MM/dd"), fileGuid).Replace(@"/", "\\");
+
+            if(fileName.Contains("payment") || 
+                fileName.Contains("shipped")||
+                fileName.Contains("delivered"))
+            {
+                string searchFolder = Path.Combine(_processedFilesFolder!, DateTime.Now.ToString("yyyy/MM")).Replace(@"/", "\\");
+                processedFolder = Directory.EnumerateDirectories(searchFolder, "*.*", SearchOption.AllDirectories)
+                    .Where(dir =>  dir.Contains(fileGuid)).FirstOrDefault();
+                if(string.IsNullOrEmpty(processedFolder))
+                    processedFolder = Path.Combine(_processedFilesFolder!, DateTime.Now.ToString("yyyy/MM/dd"), fileGuid).Replace(@"/", "\\");
+            }
 
             if (!Directory.Exists(processedFolder))
-                Directory.CreateDirectory(processedFolder);
+                Directory.CreateDirectory(processedFolder!);
 
-            string destFile = Path.Combine(processedFolder, Path.GetFileName(file));
+            string destFile = Path.Combine(processedFolder!, Path.GetFileName(file));
             if (!File.Exists(destFile))
             {
                 File.Move(file, destFile);
@@ -195,8 +207,16 @@ namespace FakeStoreOrderProcessor.Business.Services
             }
             catch (InvalidFileException)
             {
-                _logger.LogDebug($"{_className} - MoveInvalidFile - Could not obtain order guid from file: {Path.GetFileName(file)} - Invalid folder will have 'InvalidNameFiles' instead as folder name");
-                invalidFileFolder = Path.Combine(invalidFileFolder, "InvalidNameFiles");
+                if (fileName.Contains("product"))
+                {
+                    _logger.LogDebug($"{_className} - MoveInvalidFile - Could not obtain order guid from product file: {Path.GetFileName(file)} - Invalid folder will have 'InvalidProductFiles' instead as folder name");
+                    invalidFileFolder = Path.Combine(invalidFileFolder, "InvalidProductFiles");
+                }
+                else
+                {
+                    _logger.LogDebug($"{_className} - MoveInvalidFile - Could not obtain order guid from file: {Path.GetFileName(file)} - Invalid folder will have 'InvalidNameFiles' instead as folder name");
+                    invalidFileFolder = Path.Combine(invalidFileFolder, "InvalidNameFiles");
+                }
             }
 
             if (!Directory.Exists(invalidFileFolder))

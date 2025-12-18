@@ -9,10 +9,12 @@ using System.Threading.Tasks;
 
 namespace FakeStoreOrderProcessor.Library.DTO.Json
 {
-    public class OrderDelivered
+    public class OrderDeliveredDto
     {
         [Required(AllowEmptyStrings = false, ErrorMessage = "Order guid cannot be null or empty!")]
         public string? OrderGuid { get; set; }
+        [EnumDataType(typeof(OrderStatus), ErrorMessage = "Order invalid order status value!")]
+        public OrderStatus OrderStatus { get; set; }
         [EnumDataType(typeof(ShippingStatus), ErrorMessage = "Order invalid Shipping Status value!")]
         public ShippingStatus ShippingStatus { get; set; }
         [PastOrPresentDate]

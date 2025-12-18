@@ -25,6 +25,8 @@ namespace FakeStoreOrderProcessor.Library.DTO.Json
         public DateTime PaymentDate { get; set; }
         public DateTime ShippedDate { get; set; }
         public DateTime DeliveredDate { get; set; }
+        [EnumDataType(typeof(OrderStatus), ErrorMessage = "Order invalid order status value!")]
+        public OrderStatus OrderStatus { get; set; }
         [EnumDataType(typeof(PaymentStatus), ErrorMessage = "Order invalid payment status value!")]
         public PaymentStatus PaymentStatus { get; set; }
         [EnumDataType(typeof(ShippingStatus), ErrorMessage = "Order invalid shipping status value!")]

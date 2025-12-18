@@ -72,6 +72,7 @@ namespace FakeStoreOrderProcessor.Host
                         services.AddScoped<IProcessedFileLogRepository, ProcessedFileLogRepository>();
                         services.AddScoped<IAddressRepository, AddressRepository>();
                         services.AddScoped<ICustomerRepository, CustomerRepository>();
+                        services.AddScoped<IOrderRepository, OrderRepository>();
 
                         services.AddAutoMapper(typeof(BusinessAssemblyMarker).Assembly);
                     })

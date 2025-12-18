@@ -13,6 +13,8 @@ namespace FakeStoreOrderProcessor.Library.DTO.Json
     {
         [Required(AllowEmptyStrings = false, ErrorMessage = "Order guid cannot be null or empty!")]
         public string? OrderGuid { get; set; }
+        [EnumDataType(typeof(OrderStatus), ErrorMessage = "Order invalid order status value!")]
+        public OrderStatus OrderStatus { get; set; }
         [EnumDataType(typeof(PaymentStatus), ErrorMessage = "Order invalid Payment Status value!")]
         public PaymentStatus PaymentStatus { get; set; }
         [PastOrPresentDate]

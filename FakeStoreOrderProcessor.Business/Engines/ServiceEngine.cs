@@ -5,6 +5,7 @@ using FakeStoreOrderProcessor.Business.Services.Interfaces;
 using FakeStoreOrderProcessor.Library.DTO.Address;
 using FakeStoreOrderProcessor.Library.DTO.Customer;
 using FakeStoreOrderProcessor.Library.DTO.Json;
+using FakeStoreOrderProcessor.Library.DTO.Order;
 using FakeStoreOrderProcessor.Library.DTO.Product;
 using FakeStoreOrderProcessor.Library.Validation;
 using Microsoft.Extensions.Logging;
@@ -173,6 +174,47 @@ namespace FakeStoreOrderProcessor.Business.Engines
                 int number = orderToRegister.Customer.Address.Number;
 
                 await ProcessCustomer(orderToRegister, street, number, cancellationToken);
+
+                var orderToPost = _mapper.Map<CreateOrderDto>(orderToRegister);
+                _logger.LogDebug($"{_className} - ProcessSingleOrderCreatedFile - Processing order with guid: {orderToPost.OrderGuid}");
+
+                var loginRequest = new LoginRequestDto()
+                {
+                    Username = orderToRegister!.Customer!.Username,
+                    Password = orderToRegister!.Customer!.Password
+                };
+
+                var customer = await _apiService.Customers.GetByLoginRequestAsync(loginRequest, cancellationToken);
+                orderToPost.CustomerId = customer!.Id;
+                _logger.LogDebug($"{_className} - ProcessSingleOrderCreatedFile - Customer ID obtained");
+
+                foreach (var item in orderToRegister.Items!)
+                {
+                    var titleDescription = new TitleDescriptionDto()
+                    {
+                        Title = item.Title,
+                        Description = item.Description
+                    };
+
+                    var product = await _apiService.Products.GetByTitleDescription(titleDescription, cancellationToken);
+                    var orderItem = _mapper.Map<CreateOrderItemDto>(item);
+                    orderItem.ProductId = product!.Id;
+                    orderToPost.OrderItems.Add(orderItem);
+                }
+                _logger.LogDebug($"{_className} - ProcessSingleOrderCreatedFile - Order items added");
+
+                var orderDto = await _apiService.Orders.GetByGuidAsync(orderToPost.OrderGuid!, cancellationToken);
+                if (orderDto == null)
+                {
+                    await _apiService.Orders.PostAsync(orderToPost, cancellationToken);
+                    _logger.LogDebug($"{_className} - ProcessSingleOrderCreatedFile - Order posted");
+                }
+                else
+                {
+                    _logger.LogDebug($"{_className} - ProcessSingleOrderCreatedFile - Order already posted");
+                }
+
+                _fileService.MoveProcessedFile(currentFile);
             }
             catch (OperationCanceledException)
             {
@@ -199,7 +241,7 @@ namespace FakeStoreOrderProcessor.Business.Engines
                 _logger.LogError($"{_className} - ProcessSingleOrderCreatedFile - Error: {ex}. It will be retried in the next iteration.");
             }
         }
-   
+
         public async Task ProcessAddress(OrderCreatedDto? orderToRegister, CancellationToken cancellationToken)
         {
             var streetNumber = new StreetNumberDto()
