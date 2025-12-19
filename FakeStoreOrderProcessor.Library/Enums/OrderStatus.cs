@@ -11,6 +11,7 @@ namespace FakeStoreOrderProcessor.Library.Enums
         Created,
         Confirmed,
         Sent,
-        Finished
+        Finished,
+        Cancelled
     }
 }

@@ -17,6 +17,7 @@ namespace FakeStoreOrderProcessor.Business.Mappers
             CreateMap<OrderPaymentConfirmedDto, UpdateOrderDto>();
             CreateMap<OrderShippedDto, UpdateOrderDto>();
             CreateMap<OrderDeliveredDto, UpdateOrderDto>();
+            CreateMap<OrderDto, UpdateOrderDto>();
         }
     }
 }

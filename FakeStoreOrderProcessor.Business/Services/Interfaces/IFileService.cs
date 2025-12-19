@@ -8,6 +8,7 @@ namespace FakeStoreOrderProcessor.Business.Services.Interfaces
 {
     public interface IFileService
     {
+        public string? ProcessedFilesFolder { get; set; }
         public List<string> GetAllFiles();
         public List<string> GetAllProcessingFiles();
         public void ValidateAndCreateDirectories();

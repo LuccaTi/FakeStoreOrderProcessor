@@ -9,8 +9,10 @@ namespace FakeStoreOrderProcessor.Business.Repositories.Interfaces
 {
     public interface IOrderRepository : IApiRepository<OrderDto, CreateOrderDto, UpdateOrderDto>
     {
+        public Task<IEnumerable<OrderDto>> GetAllDayBeforeAsync(CancellationToken cancellationToken);
         public Task<OrderDto?> GetByGuidAsync(string orderGuid, CancellationToken cancellationToken);
         public Task<OrderWithOrderItemsDto?> GetByGuidWithOrderItemsAsync(string orderGuid, CancellationToken cancellationToken);
         public Task PatchOrderAsync(string orderGuid, UpdateOrderDto orderDto, CancellationToken cancellationToken);
+        public Task DeleteWithGuidAsync(string orderGuid, CancellationToken cancellationToken);
     }
 }

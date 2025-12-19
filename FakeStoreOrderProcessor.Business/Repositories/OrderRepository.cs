@@ -18,6 +18,16 @@ namespace FakeStoreOrderProcessor.Business.Repositories
 
         }
 
+        public async Task<IEnumerable<OrderDto>> GetAllDayBeforeAsync(CancellationToken cancellationToken)
+        {
+            var orders = await _httpClient.GetFromJsonAsync<IEnumerable<OrderDto>>($"{_endpoint}/day-before", cancellationToken);
+
+            if (orders == null)
+                return new List<OrderDto>();
+
+            return orders;
+        }
+
         public async Task<OrderDto?> GetByGuidAsync(string orderGuid, CancellationToken cancellationToken)
         {
             try
@@ -47,6 +57,12 @@ namespace FakeStoreOrderProcessor.Business.Repositories
         public async Task PatchOrderAsync(string orderGuid, UpdateOrderDto orderDto, CancellationToken cancellationToken)
         {
             var response = await _httpClient.PatchAsJsonAsync($"{_endpointPath}/{orderGuid}", orderDto, cancellationToken);
+            response.EnsureSuccessStatusCode();
+        }
+
+        public async Task DeleteWithGuidAsync(string orderGuid, CancellationToken cancellationToken)
+        {
+            var response = await _httpClient.DeleteAsync($"{_endpointPath}/{orderGuid}");
             response.EnsureSuccessStatusCode();
         }
     }

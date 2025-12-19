@@ -7,6 +7,7 @@ using FakeStoreOrderProcessor.Library.DTO.Customer;
 using FakeStoreOrderProcessor.Library.DTO.Json;
 using FakeStoreOrderProcessor.Library.DTO.Order;
 using FakeStoreOrderProcessor.Library.DTO.Product;
+using FakeStoreOrderProcessor.Library.Enums;
 using FakeStoreOrderProcessor.Library.Validation;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -30,6 +31,7 @@ namespace FakeStoreOrderProcessor.Business.Engines
         private readonly IMapper _mapper;
         private readonly IFileService _fileService;
         private readonly IApiService _apiService;
+        private DateTime _lastCancelOrdersRun = DateTime.MinValue;
 
         public ServiceEngine(ILogger<ServiceEngine> logger, IMapper mapper, IFileService fileService, IApiService apiService)
         {
@@ -41,12 +43,22 @@ namespace FakeStoreOrderProcessor.Business.Engines
 
         public async Task ProcessAsync(CancellationToken cancellationToken)
         {
-            _logger.LogDebug($"{_className} - ProcessAsync - Starting processing");
+            if (_lastCancelOrdersRun.Date < DateTime.Today)
+            {
+                _logger.LogInformation($"{_className} - Running daily CancelOrders task.");
+                await CancelOrders(cancellationToken);
+                _lastCancelOrdersRun = DateTime.Now;
+                _logger.LogInformation($"{_className} - Daily CancelOrders task finished.");
+            }
+
             var processingFiles = _fileService.GetAllProcessingFiles();
             var files = _fileService.GetAllFiles();
 
             if (processingFiles.Any())
             {
+
+                _logger.LogDebug($"{_className} - ProcessAsync - Starting processing pending files");
+
                 var processingProductFiles = processingFiles.Where(file => Path.GetFileName(file).Contains("product")).ToList();
                 foreach (var file in processingProductFiles)
                 {
@@ -60,7 +72,7 @@ namespace FakeStoreOrderProcessor.Business.Engines
                 }
 
                 var processingOrderPaymentFiles = processingFiles.Where(file => Path.GetFileName(file).Contains("payment")).ToList();
-                foreach(var file in processingOrderPaymentFiles)
+                foreach (var file in processingOrderPaymentFiles)
                 {
                     await ProcessSingleOrderPaymentFile(file, false, cancellationToken);
                 }
@@ -78,34 +90,40 @@ namespace FakeStoreOrderProcessor.Business.Engines
                 }
             }
 
-            var productFiles = files.Where(file => Path.GetFileName(file).Contains("product")).ToList();
-            foreach (var file in productFiles)
+            if (files.Any())
             {
-                await ProcessSingleProductFile(file, true, cancellationToken);
-            }
 
-            var orderCreatedFiles = files.Where(file => Path.GetFileName(file).Contains("created")).ToList();
-            foreach (var file in orderCreatedFiles)
-            {
-                await ProcessSingleOrderCreatedFile(file, true, cancellationToken);
-            }
+                _logger.LogDebug($"{_className} - ProcessAsync - Starting processing");
 
-            var orderPaymentFiles = files.Where(file => Path.GetFileName(file).Contains("payment")).ToList();
-            foreach(var file in orderPaymentFiles)
-            {
-                await ProcessSingleOrderPaymentFile(file, true, cancellationToken);
-            }
+                var productFiles = files.Where(file => Path.GetFileName(file).Contains("product")).ToList();
+                foreach (var file in productFiles)
+                {
+                    await ProcessSingleProductFile(file, true, cancellationToken);
+                }
 
-            var OrderShippedFiles = files.Where(file => Path.GetFileName(file).Contains("shipped")).ToList();
-            foreach (var file in OrderShippedFiles)
-            {
-                await ProcessSingleOrderShippedFile(file, false, cancellationToken);
-            }
+                var orderCreatedFiles = files.Where(file => Path.GetFileName(file).Contains("created")).ToList();
+                foreach (var file in orderCreatedFiles)
+                {
+                    await ProcessSingleOrderCreatedFile(file, true, cancellationToken);
+                }
 
-            var OrderDeliveredFiles = files.Where(file => Path.GetFileName(file).Contains("delivered")).ToList();
-            foreach (var file in OrderDeliveredFiles)
-            {
-                await ProcessSingleOrderDeliveredFile(file, false, cancellationToken);
+                var orderPaymentFiles = files.Where(file => Path.GetFileName(file).Contains("payment")).ToList();
+                foreach (var file in orderPaymentFiles)
+                {
+                    await ProcessSingleOrderPaymentFile(file, true, cancellationToken);
+                }
+
+                var OrderShippedFiles = files.Where(file => Path.GetFileName(file).Contains("shipped")).ToList();
+                foreach (var file in OrderShippedFiles)
+                {
+                    await ProcessSingleOrderShippedFile(file, true, cancellationToken);
+                }
+
+                var OrderDeliveredFiles = files.Where(file => Path.GetFileName(file).Contains("delivered")).ToList();
+                foreach (var file in OrderDeliveredFiles)
+                {
+                    await ProcessSingleOrderDeliveredFile(file, true, cancellationToken);
+                }
             }
         }
 
@@ -283,7 +301,7 @@ namespace FakeStoreOrderProcessor.Business.Engines
             string currentFile = file;
             string fileName = Path.GetFileName(file);
             _logger.LogDebug($"{_className} - ProcessSingleOrderPaymentFile - Processing file: {fileName}");
-            
+
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -304,7 +322,7 @@ namespace FakeStoreOrderProcessor.Business.Engines
 
                 var orderToPatch = await _apiService.Orders.GetByGuidWithOrderItemsAsync(orderPayed!.OrderGuid!, cancellationToken);
                 var patchedOrder = _mapper.Map<UpdateOrderDto>(orderPayed);
-                foreach(var item in orderToPatch!.OrderItems)
+                foreach (var item in orderToPatch!.OrderItems)
                 {
                     patchedOrder.OrderItems.Add(new CreateOrderItemDto()
                     {
@@ -383,6 +401,7 @@ namespace FakeStoreOrderProcessor.Business.Engines
                 }
                 patchedOrder.OrderDate = orderToPatch.OrderDate;
                 patchedOrder.PaymentDate = orderToPatch.PaymentDate;
+                patchedOrder.TotalPrice = orderToPatch.TotalPrice;
 
                 await _apiService.Orders.PatchOrderAsync(orderShipped!.OrderGuid!, patchedOrder, cancellationToken);
                 _logger.LogDebug($"{_className} - ProcessSingleOrderShippedFile - Order patched");
@@ -453,6 +472,7 @@ namespace FakeStoreOrderProcessor.Business.Engines
                 patchedOrder.OrderDate = orderToPatch.OrderDate;
                 patchedOrder.PaymentDate = orderToPatch.PaymentDate;
                 patchedOrder.ShippedDate = orderToPatch.ShippedDate;
+                patchedOrder.TotalPrice = orderToPatch.TotalPrice;
 
                 await _apiService.Orders.PatchOrderAsync(orderDelivered!.OrderGuid!, patchedOrder, cancellationToken);
                 _logger.LogDebug($"{_className} - ProcessSingleOrderDeliveredFile - Order patched");
@@ -528,6 +548,76 @@ namespace FakeStoreOrderProcessor.Business.Engines
 
                 var postedCustomer = await _apiService.Customers.PostAsync(customerToPost, cancellationToken);
                 _logger.LogDebug($"{_className} - ProcessSingleOrderCreatedFile - Customer posted");
+            }
+        }
+
+        public async Task CancelOrders(CancellationToken cancellationToken)
+        {
+            try
+            {
+                var previousDayOrders = await _apiService.Orders.GetAllDayBeforeAsync(cancellationToken);
+                var notPayedOrders = previousDayOrders.Where(o => o.PaymentStatus == PaymentStatus.Pending.ToString()).ToList();
+
+                foreach (var order in notPayedOrders)
+                {
+                    try
+                    {
+                        var currentMonthProcessedFolder = Path.Combine(_fileService.ProcessedFilesFolder!, DateTime.Now.ToString("yyyy/MM")).Replace(@"/", "\\");
+                        var orderFile = Directory.EnumerateFiles(currentMonthProcessedFolder, "*.*", SearchOption.AllDirectories)
+                                    .Where(file => Path.GetFileName(file)
+                                    .Contains(order.OrderGuid!)).FirstOrDefault();
+
+                        if (string.IsNullOrEmpty(orderFile))
+                            throw new InvalidOrderException($"Order with guid: {order.OrderGuid} does not have a file in processed folder, manual validation is required!");
+
+                        if (order.PaymentStatus == PaymentStatus.Pending.ToString() && order.OrderStatus != OrderStatus.Cancelled.ToString())
+                        {
+                            var patchedOrder = _mapper.Map<UpdateOrderDto>(order);
+                            var orderWithItems = await _apiService.Orders.GetByGuidWithOrderItemsAsync(order.OrderGuid!, cancellationToken);
+
+                            foreach (var item in orderWithItems!.OrderItems)
+                            {
+                                patchedOrder.OrderItems.Add(new CreateOrderItemDto()
+                                {
+                                    ProductId = item.ProductId,
+                                    Quantity = item.Quantity,
+                                    TotalPrice = item.TotalPrice
+                                });
+                            }
+
+                            patchedOrder.OrderStatus = OrderStatus.Cancelled.ToString();
+
+                            await _apiService.Orders.PatchOrderAsync(order.OrderGuid!, patchedOrder!, cancellationToken);
+                        }
+
+                        try
+                        {
+                            await _apiService.Orders.DeleteWithGuidAsync(order.OrderGuid!, cancellationToken);
+                        }
+                        catch (HttpRequestException ex)
+                        {
+                            if (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+                            {
+                                _logger.LogDebug($"{_className} - CancelOrders - Order with guid: {order.OrderGuid} already soft deleted from database");
+                            }
+                            else
+                            {
+                                throw;
+                            }
+                        }
+
+                        _fileService.MoveCancelledOrder(orderFile!);
+                    }
+                    catch (InvalidOrderException ex)
+                    {
+                        _logger.LogError($"{_className} - CancelOrders - Error: {ex.Message}");
+                        continue;
+                    }
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError($"{_className} - CancelOrders - Error: {ex}. It will be retried in the next iteration.");
             }
         }
     }

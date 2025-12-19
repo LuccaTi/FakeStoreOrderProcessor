@@ -17,7 +17,7 @@ namespace FakeStoreOrderProcessor.Business.Services
         private readonly ILogger<FileService> _logger;
         private readonly IOptions<ServiceSettings> _settings;
         private string? _ordersFolder;
-        private string? _processedFilesFolder;
+        public string? ProcessedFilesFolder { get; set; }
         private string? _processingFilesFolder;
         private string? _cancelledOrdersFolder;
         private string? _invalidFilesFolder;
@@ -29,7 +29,7 @@ namespace FakeStoreOrderProcessor.Business.Services
             _settings = settings;
 
             _ordersFolder = _settings.Value.OrdersFolder;
-            _processedFilesFolder = _settings.Value.ProcessedFilesFolder;
+            ProcessedFilesFolder = _settings.Value.ProcessedFilesFolder;
             _processingFilesFolder = _settings.Value.ProcessingFilesFolder;
             _cancelledOrdersFolder = _settings.Value.CancelledOrdersFolder;
             _invalidFilesFolder = _settings.Value.InvalidFilesFolder;
@@ -65,7 +65,7 @@ namespace FakeStoreOrderProcessor.Business.Services
             if (string.IsNullOrEmpty(_ordersFolder))
                 throw new Exception("Orders folder path was not provided!");
 
-            if (string.IsNullOrEmpty(_processedFilesFolder))
+            if (string.IsNullOrEmpty(ProcessedFilesFolder))
                 throw new Exception("Processed files folder path was not provided!");
 
             if (string.IsNullOrEmpty(_cancelledOrdersFolder))
@@ -90,10 +90,10 @@ namespace FakeStoreOrderProcessor.Business.Services
                 _logger.LogDebug($"{_className} - ValidateAndCreateDirectories - Orders folder already exists");
             }
 
-            if (!Directory.Exists(_processedFilesFolder))
+            if (!Directory.Exists(ProcessedFilesFolder))
             {
-                Directory.CreateDirectory(_processedFilesFolder);
-                _logger.LogDebug($"{_className} - ValidateAndCreateDirectories - Folder: {_processedFilesFolder} created");
+                Directory.CreateDirectory(ProcessedFilesFolder);
+                _logger.LogDebug($"{_className} - ValidateAndCreateDirectories - Folder: {ProcessedFilesFolder} created");
             }
             else
             {
@@ -145,17 +145,17 @@ namespace FakeStoreOrderProcessor.Business.Services
         {
             string fileName = Path.GetFileName(file);
             string fileGuid = GetGuidFromOrderFile(file);
-            string? processedFolder = Path.Combine(_processedFilesFolder!, DateTime.Now.ToString("yyyy/MM/dd"), fileGuid).Replace(@"/", "\\");
+            string? processedFolder = Path.Combine(ProcessedFilesFolder!, DateTime.Now.ToString("yyyy/MM/dd"), fileGuid).Replace(@"/", "\\");
 
             if(fileName.Contains("payment") || 
                 fileName.Contains("shipped")||
                 fileName.Contains("delivered"))
             {
-                string searchFolder = Path.Combine(_processedFilesFolder!, DateTime.Now.ToString("yyyy/MM")).Replace(@"/", "\\");
+                string searchFolder = Path.Combine(ProcessedFilesFolder!, DateTime.Now.ToString("yyyy/MM")).Replace(@"/", "\\");
                 processedFolder = Directory.EnumerateDirectories(searchFolder, "*.*", SearchOption.AllDirectories)
                     .Where(dir =>  dir.Contains(fileGuid)).FirstOrDefault();
                 if(string.IsNullOrEmpty(processedFolder))
-                    processedFolder = Path.Combine(_processedFilesFolder!, DateTime.Now.ToString("yyyy/MM/dd"), fileGuid).Replace(@"/", "\\");
+                    processedFolder = Path.Combine(ProcessedFilesFolder!, DateTime.Now.ToString("yyyy/MM/dd"), fileGuid).Replace(@"/", "\\");
             }
 
             if (!Directory.Exists(processedFolder))
