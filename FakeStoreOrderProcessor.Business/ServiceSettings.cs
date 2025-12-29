@@ -19,6 +19,7 @@ namespace FakeStoreOrderProcessor.Business
         public string? CancelledOrdersFolder { get; set; }
         public string? InvalidFilesFolder { get; set; }
         public string? RegisteredProductsFolder { get; set; }
+        public bool CancelOtherOrders { get; set; }
         public string? ApiUrl { get; set; }
         public int Timeout { get; set; }
     }

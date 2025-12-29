@@ -15,6 +15,7 @@ namespace FakeStoreOrderProcessor.Business.Services.Interfaces
         public void MoveProcessedFile(string file);
         public void MoveCancelledOrder(string file);
         public void MoveInvalidFile(string file);
+        public void MoveInvalidFolder(string folder);
         public void MoveRegisteredProduct(string file);
         public string MoveToProcessing(string file);
         public void DeleteFile(string file);

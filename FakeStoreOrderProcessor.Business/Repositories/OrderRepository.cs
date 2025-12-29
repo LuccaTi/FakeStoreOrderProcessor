@@ -28,6 +28,15 @@ namespace FakeStoreOrderProcessor.Business.Repositories
             return orders;
         }
 
+        public async Task<IEnumerable<OrderDto>> GetAllActiveOrNotAsync(CancellationToken cancellationToken)
+        {
+            var orders = await _httpClient.GetFromJsonAsync<IEnumerable<OrderDto>>($"{_endpoint}/active-or-not", cancellationToken);
+            if (orders == null)
+                return new List<OrderDto>();
+
+            return orders;
+        }
+
         public async Task<OrderDto?> GetByGuidAsync(string orderGuid, CancellationToken cancellationToken)
         {
             try
@@ -37,7 +46,7 @@ namespace FakeStoreOrderProcessor.Business.Repositories
             }
             catch (HttpRequestException ex)
             {
-                if(ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+                if (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
                 {
                     return null;
                 }

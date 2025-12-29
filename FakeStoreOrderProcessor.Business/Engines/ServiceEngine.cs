@@ -28,14 +28,16 @@ namespace FakeStoreOrderProcessor.Business.Engines
     {
         private const string _className = "ServiceEngine";
         private readonly ILogger<ServiceEngine> _logger;
+        private readonly IOptions<ServiceSettings> _settings;
         private readonly IMapper _mapper;
         private readonly IFileService _fileService;
         private readonly IApiService _apiService;
         private DateTime _lastCancelOrdersRun = DateTime.MinValue;
 
-        public ServiceEngine(ILogger<ServiceEngine> logger, IMapper mapper, IFileService fileService, IApiService apiService)
+        public ServiceEngine(ILogger<ServiceEngine> logger, IOptions<ServiceSettings> settings, IMapper mapper, IFileService fileService, IApiService apiService)
         {
             _logger = logger;
+            _settings = settings;
             _mapper = mapper;
             _fileService = fileService;
             _apiService = apiService;
@@ -567,9 +569,6 @@ namespace FakeStoreOrderProcessor.Business.Engines
                                     .Where(file => Path.GetFileName(file)
                                     .Contains(order.OrderGuid!)).FirstOrDefault();
 
-                        if (string.IsNullOrEmpty(orderFile))
-                            throw new InvalidOrderException($"Order with guid: {order.OrderGuid} does not have a file in processed folder, manual validation is required!");
-
                         if (order.PaymentStatus == PaymentStatus.Pending.ToString() && order.OrderStatus != OrderStatus.Cancelled.ToString())
                         {
                             var patchedOrder = _mapper.Map<UpdateOrderDto>(order);
@@ -606,12 +605,86 @@ namespace FakeStoreOrderProcessor.Business.Engines
                             }
                         }
 
-                        _fileService.MoveCancelledOrder(orderFile!);
+                        if (!string.IsNullOrEmpty(orderFile))
+                        {
+                            _fileService.MoveCancelledOrder(orderFile!);
+                        }
+                        else
+                        {
+                            _logger.LogWarning($"Order with guid: {order.OrderGuid} does not have a file in processed folder");
+                        }
                     }
                     catch (InvalidOrderException ex)
                     {
                         _logger.LogError($"{_className} - CancelOrders - Error: {ex.Message}");
                         continue;
+                    }
+                }
+
+                if (_settings.Value.CancelOtherOrders)
+                {
+                    var AllOrders = await _apiService.Orders.GetAllActiveOrNotAsync(cancellationToken);
+                    var ordersToCancel = AllOrders!.Where(o => o.PaymentStatus == PaymentStatus.Pending.ToString()).ToList();
+
+                    foreach (var order in ordersToCancel)
+                    {
+                        try
+                        {
+                            var currentMonthProcessedFolder = Path.Combine(_fileService.ProcessedFilesFolder!, DateTime.Now.ToString("yyyy/MM")).Replace(@"/", "\\");
+                            var orderFile = Directory.EnumerateFiles(currentMonthProcessedFolder, "*.*", SearchOption.AllDirectories)
+                                        .Where(file => Path.GetFileName(file)
+                                        .Contains(order.OrderGuid!)).FirstOrDefault();
+
+                            if (order.PaymentStatus == PaymentStatus.Pending.ToString() && order.OrderStatus != OrderStatus.Cancelled.ToString())
+                            {
+                                var patchedOrder = _mapper.Map<UpdateOrderDto>(order);
+                                var orderWithItems = await _apiService.Orders.GetByGuidWithOrderItemsAsync(order.OrderGuid!, cancellationToken);
+
+                                foreach (var item in orderWithItems!.OrderItems)
+                                {
+                                    patchedOrder.OrderItems.Add(new CreateOrderItemDto()
+                                    {
+                                        ProductId = item.ProductId,
+                                        Quantity = item.Quantity,
+                                        TotalPrice = item.TotalPrice
+                                    });
+                                }
+
+                                patchedOrder.OrderStatus = OrderStatus.Cancelled.ToString();
+
+                                await _apiService.Orders.PatchOrderAsync(order.OrderGuid!, patchedOrder!, cancellationToken);
+                            }
+
+                            try
+                            {
+                                await _apiService.Orders.DeleteWithGuidAsync(order.OrderGuid!, cancellationToken);
+                            }
+                            catch (HttpRequestException ex)
+                            {
+                                if (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+                                {
+                                    _logger.LogDebug($"{_className} - CancelOrders - Order with guid: {order.OrderGuid} already soft deleted from database");
+                                }
+                                else
+                                {
+                                    throw;
+                                }
+                            }
+
+                            if (!string.IsNullOrEmpty(orderFile))
+                            {
+                                _fileService.MoveCancelledOrder(orderFile!);
+                            }
+                            else
+                            {
+                                _logger.LogWarning($"Order with guid: {order.OrderGuid} does not have a file in processed folder");
+                            }
+                        }
+                        catch (InvalidOrderException ex)
+                        {
+                            _logger.LogError($"{_className} - CancelOrders - Error: {ex.Message}");
+                            continue;
+                        }
                     }
                 }
             }

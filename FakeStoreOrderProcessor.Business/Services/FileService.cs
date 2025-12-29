@@ -182,16 +182,18 @@ namespace FakeStoreOrderProcessor.Business.Services
             if (!Directory.Exists(cancelledOrderFolder))
                 Directory.CreateDirectory(cancelledOrderFolder);
 
-            string destFile = Path.Combine(cancelledOrderFolder, Path.GetFileName(file));
-            if (!File.Exists(destFile))
+            string sourceDir = Path.GetDirectoryName(file)!;
+            string directoryName = sourceDir.Split(Path.DirectorySeparatorChar).Last();
+            string destDir = Path.Combine(cancelledOrderFolder, directoryName);
+            if (!Directory.Exists(destDir))
             {
-                File.Move(file, destFile);
-                _logger.LogDebug($"{_className} - MoveCancelledOrder - File moved: {destFile}");
+                Directory.Move(sourceDir, destDir);
+                _logger.LogDebug($"{_className} - MoveCancelledOrder - Directory moved: {destDir}");
             }
             else
             {
-                _logger.LogWarning($"{_className} - MoveCancelledOrder - File: {destFile} already exists, copy will be sent to invalid files folder!");
-                MoveInvalidFile(file);
+                _logger.LogWarning($"{_className} - MoveCancelledOrder - Directory: {destDir} already exists, copy will be sent to invalid files folder!");
+                MoveInvalidFolder(sourceDir);
             }
         }
 
@@ -241,6 +243,37 @@ namespace FakeStoreOrderProcessor.Business.Services
                 catch (Exception ex)
                 {
                     _logger.LogError($"{_className} - MoveInvalidFile - Could not move invalid file: {destFile} - Error: {ex.Message} - Manual verification is required!");
+                }
+            }
+        }
+
+        public void MoveInvalidFolder(string folder)
+        {
+            string invalidFileFolder = Path.Combine(_invalidFilesFolder!, DateTime.Now.ToString("yyyy/MM/dd")).Replace(@"/", "\\");
+
+            if (!Directory.Exists(invalidFileFolder))
+                Directory.CreateDirectory(invalidFileFolder);
+
+            string folderName = folder.Split(Path.DirectorySeparatorChar).Last();
+            string destDir = Path.Combine(invalidFileFolder, folderName);
+
+            if (!Directory.Exists(destDir))
+            {
+                Directory.Move(folder, destDir);
+                _logger.LogDebug($"{_className} - MoveInvalidFolder - Directory moved: {destDir}");
+            }
+            else
+            {
+                folderName = DateTime.Now.Ticks + "_copy_" + folderName;
+                destDir = Path.Combine(invalidFileFolder, folderName);
+                try
+                {
+                    Directory.Move(folder, destDir);
+                    _logger.LogDebug($"{_className} - MoveInvalidFolder - Directory moved: {destDir}");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"{_className} - MoveInvalidFolder - Could not move invalid directory: {destDir} - Error: {ex.Message} - Manual verification is required!");
                 }
             }
         }
