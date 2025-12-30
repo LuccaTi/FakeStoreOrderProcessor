@@ -59,7 +59,7 @@ namespace FakeStoreOrderProcessor.Business.Repositories
 
         public async Task<OrderWithOrderItemsDto?> GetByGuidWithOrderItemsAsync(string orderGuid, CancellationToken cancellationToken)
         {
-            var order = await _httpClient.GetFromJsonAsync<OrderWithOrderItemsDto>($"{_endpoint}/{orderGuid}/with-order-itens", cancellationToken);
+            var order = await _httpClient.GetFromJsonAsync<OrderWithOrderItemsDto>($"{_endpoint}/{orderGuid}/with-order-items", cancellationToken);
             return order;
         }
 

@@ -177,13 +177,14 @@ namespace FakeStoreOrderProcessor.Business.Services
         public void MoveCancelledOrder(string file)
         {
             string fileGuid = GetGuidFromOrderFile(file);
-            string cancelledOrderFolder = Path.Combine(_cancelledOrdersFolder!, DateTime.Now.ToString("yyyy/MM/dd")).Replace(@"/", "\\");
+            string sourceDir = Path.GetDirectoryName(file)!;
+            string directoryName = sourceDir.Split(Path.DirectorySeparatorChar).Last();
+            string dayOfOrder = Path.GetDirectoryName(sourceDir)!.Split(Path.DirectorySeparatorChar).Last();
+            string cancelledOrderFolder = Path.Combine(_cancelledOrdersFolder!, DateTime.Now.ToString("yyyy/MM"), dayOfOrder).Replace(@"/", "\\");
 
             if (!Directory.Exists(cancelledOrderFolder))
                 Directory.CreateDirectory(cancelledOrderFolder);
 
-            string sourceDir = Path.GetDirectoryName(file)!;
-            string directoryName = sourceDir.Split(Path.DirectorySeparatorChar).Last();
             string destDir = Path.Combine(cancelledOrderFolder, directoryName);
             if (!Directory.Exists(destDir))
             {

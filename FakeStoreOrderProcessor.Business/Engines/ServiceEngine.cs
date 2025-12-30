@@ -691,6 +691,7 @@ namespace FakeStoreOrderProcessor.Business.Engines
             catch (HttpRequestException ex)
             {
                 _logger.LogError($"{_className} - CancelOrders - Error: {ex}. It will be retried in the next iteration.");
+                throw;
             }
         }
     }
