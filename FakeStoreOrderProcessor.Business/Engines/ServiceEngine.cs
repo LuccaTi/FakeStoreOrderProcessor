@@ -630,6 +630,7 @@ namespace FakeStoreOrderProcessor.Business.Engines
                     {
                         try
                         {
+                            _logger.LogDebug($"{_className} - CancelOrders - Order with GUID: '{order.OrderGuid}'");
                             var currentMonthProcessedFolder = Path.Combine(_fileService.ProcessedFilesFolder!, DateTime.Now.ToString("yyyy/MM")).Replace(@"/", "\\");
                             var orderFile = Directory.EnumerateFiles(currentMonthProcessedFolder, "*.*", SearchOption.AllDirectories)
                                         .Where(file => Path.GetFileName(file)
@@ -653,11 +654,13 @@ namespace FakeStoreOrderProcessor.Business.Engines
                                 patchedOrder.OrderStatus = OrderStatus.Cancelled.ToString();
 
                                 await _apiService.Orders.PatchOrderAsync(order.OrderGuid!, patchedOrder!, cancellationToken);
+                                _logger.LogDebug($"{_className} - CancelOrders - Order patched in DB");
                             }
 
                             try
                             {
                                 await _apiService.Orders.DeleteWithGuidAsync(order.OrderGuid!, cancellationToken);
+                                _logger.LogDebug($"{_className} - CancelOrders - Order soft deleted");
                             }
                             catch (HttpRequestException ex)
                             {
@@ -674,11 +677,14 @@ namespace FakeStoreOrderProcessor.Business.Engines
                             if (!string.IsNullOrEmpty(orderFile))
                             {
                                 _fileService.MoveCancelledOrder(orderFile!);
+                                _logger.LogDebug($"{_className} - CancelOrders - Order moved");
                             }
                             else
                             {
                                 _logger.LogWarning($"Order with guid: {order.OrderGuid} does not have a file in processed folder");
                             }
+
+                            _logger.LogDebug($"{_className} - CancelOrders - Order cancelled");
                         }
                         catch (InvalidOrderException ex)
                         {
